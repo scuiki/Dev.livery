@@ -1,4 +1,5 @@
 import { openDatabaseSync } from 'expo-sqlite';
+import * as SecureStore from 'expo-secure-store';
 
 export const registerUser = (
   nome: string,
@@ -50,5 +51,22 @@ export const loginUser = (
   } catch (error: any) {
     console.log('Erro no login:', error?.message || error);
     return Promise.resolve(false);
+  }
+};
+
+export const getCurrentUser = async (): Promise<any | null> => {
+  try {
+    const email = await SecureStore.getItemAsync('userEmail');
+    if (!email) return null;
+
+    const db = openDatabaseSync('devlivery.db');
+    const stmt = db.prepareSync('SELECT * FROM users WHERE email = ?;');
+    const result = stmt.executeSync([email]);
+    const [user] = result.getAllSync();
+    stmt.finalizeSync();
+    return user ?? null;
+  } catch (error: any) {
+    console.log('Erro ao buscar usuário logado:', error.message || error);
+    return null;
   }
 };

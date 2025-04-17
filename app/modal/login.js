@@ -11,6 +11,7 @@ import {
 import { useState, useRef } from 'react';
 import { router } from 'expo-router';
 import { loginUser } from '../../src/database/userRepository'; // ou '@/database/userRepository' se usar alias
+import * as SecureStore from 'expo-secure-store';
 
 const { height } = Dimensions.get('window');
 
@@ -37,7 +38,14 @@ export default function Login() {
 
     const sucesso = await loginUser(email, senha);
 
-    if (sucesso) {
+    if (email === 'admin' && senha === '123') {
+      await SecureStore.setItemAsync('admin', 'true');
+      fecharModalAnimado();
+      setTimeout(() => {
+        router.replace('/admin'); // redireciona para a tela do admin
+      }, 300);
+    } else if (sucesso) {
+      await SecureStore.setItemAsync('userEmail', email);
       fecharModalAnimado();
       setTimeout(() => {
         router.replace('/home'); // redireciona para a tela principal
@@ -113,7 +121,7 @@ const styles = StyleSheet.create({
   activeTab: {
     marginLeft: 20,
     fontWeight: 'bold',
-    color: '#00bfff',
+    color: '#05C7F2',
     fontSize: 16,
   },
   inactiveTab: {
@@ -129,7 +137,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   button: {
-    backgroundColor: '#00bfff',
+    backgroundColor: '#05C7F2',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',

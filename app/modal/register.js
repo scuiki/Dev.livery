@@ -45,10 +45,8 @@ export default function Register() {
 
   return (
     <View style={styles.backdrop}>
-      {/* área fora do modal que fecha ao clicar */}
       <Pressable style={styles.touchArea} onPress={fecharModalAnimado} />
 
-      {/* conteúdo do modal com animação */}
       <Animated.View style={[styles.modalContainer, { transform: [{ translateY }] }]}>
 
         <View style={styles.tab}>
@@ -122,7 +120,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#00bfff',
+    color: '#05C7F2',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -134,7 +132,7 @@ const styles = StyleSheet.create({
   activeTab: {
     marginRight: 20,
     fontWeight: 'bold',
-    color: '#00bfff',
+    color: '#05C7F2',
     fontSize: 16,
   },
   inactiveTab: {
@@ -150,7 +148,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   button: {
-    backgroundColor: '#00bfff',
+    backgroundColor: '#05C7F2',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',

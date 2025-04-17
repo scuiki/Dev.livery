@@ -6,8 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { initDB } from '@/src/database/database';
-
 import { useColorScheme } from '@/hooks/useColorScheme';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from '@/components/toastConfig';
 
 SplashScreen.preventAutoHideAsync();
 
