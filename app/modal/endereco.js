@@ -94,4 +94,3 @@ import {
     },
     botaoTexto: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   });
-  

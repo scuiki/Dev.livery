@@ -59,4 +59,3 @@ export const initDB = () => {
   stmtPedidos.executeSync();
   stmtPedidos.finalizeSync();
 };
-
