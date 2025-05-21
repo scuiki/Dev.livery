@@ -1,50 +1,42 @@
-# Welcome to your Expo app 👋
+## 🧱 Padrões de Projeto Aplicados
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+### ✅ Interface Segregation Principle (ISP)
 
-## Get started
+O princípio da Segregação de Interfaces foi aplicado no repositório de usuários (`userRepository.ts`), que anteriormente centralizava todas as funções relacionadas a login, cadastro e dados do usuário.
 
-1. Install dependencies
+Para atender ao ISP, foram criadas três interfaces separadas:
 
-   ```bash
-   npm install
-   ```
+```ts
+// ILogin.ts
+export interface ILogin {
+  loginUser(email: string, senha: string): Promise<boolean>;
+}
 
-2. Start the app
+// IRegister.ts
+export interface IRegister {
+  registerUser(nome: string, email: string, celular: string, senha: string): Promise<boolean>;
+}
 
-   ```bash
-    npx expo start
-   ```
+// IUserData.ts
+export interface IUserData {
+  getCurrentUser(): Promise<any | null>;
+}
 
-In the output, you'll find options to open the app in a
+Essas interfaces são implementadas em uma única classe `UserRepository`, mas cada parte da aplicação importa **apenas a interface que realmente utiliza**, reduzindo acoplamento e melhorando a organização.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+```ts
+class UserRepository implements ILogin, IRegister, IUserData {
+  // implementação dos três métodos
+}
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+export const userRepository = new UserRepository();
 
-## Get a fresh project
+Exemplo de uso em uma tela que só precisa da função de login:
 
-When you're ready, run:
+```ts
+import type { ILogin } from '../interfaces/user/ILogin';
+const authService: ILogin = userRepository;
 
-```bash
-npm run reset-project
-```
+await authService.loginUser(email, senha);
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Esse modelo permite reaproveitamento, facilita testes e está de acordo com a letra I do SOLID.
