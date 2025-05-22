@@ -3,14 +3,18 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import BottomTabs from '../components/bottomTabs';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
-import { getCurrentUser } from '../src/database/userRepository';
+import { userRepository } from '../src/database/userRepository';
+import type { IUserData } from '../src/interfaces/user/IUserData';
+import type { User } from '../src/types/User';
+
+const userService: IUserData = userRepository;
 
 export default function Profile() {
-  const [usuario, setUsuario] = useState(null);
+  const [usuario, setUsuario] = useState<User | null>(null);
 
   useEffect(() => {
     const carregarDados = async () => {
-      const dados = await getCurrentUser();
+      const dados = await userService.getCurrentUser();
       if (dados) setUsuario(dados);
     };
   

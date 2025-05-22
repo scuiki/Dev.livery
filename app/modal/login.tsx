@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { useState, useRef } from 'react';
 import { router } from 'expo-router';
-import { loginUser } from '../../src/database/userRepository'; // ou '@/database/userRepository' se usar alias
+import { userRepository } from '../../src/database/userRepository';
+import type { ILogin } from '../../src/interfaces/user/ILogin';
 import * as SecureStore from 'expo-secure-store';
 
+const authService: ILogin = userRepository;
 const { height } = Dimensions.get('window');
 
 export default function Login() {
@@ -36,7 +38,7 @@ export default function Login() {
       return;
     }
 
-    const sucesso = await loginUser(email, senha);
+    const sucesso = await authService.loginUser(email, senha);
 
     if (email === 'admin' && senha === '123') {
       await SecureStore.setItemAsync('admin', 'true');

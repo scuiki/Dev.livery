@@ -2,7 +2,7 @@
 
 ### Interface Segregation Principle (ISP)
 
-O princípio da Segregação de Interfaces foi aplicado no repositório de usuários (`userRepository.ts`), que anteriormente centralizava todas as funções relacionadas a login, cadastro e dados do usuário.
+O princípio da Segregação de Interfaces foi aplicado no repositório de usuários (`userRepository.ts`), que anteriormente centralizava todas as funções de login, cadastro e recuperação de dados do usuário.
 
 Para atender ao ISP, foram criadas três interfaces separadas:
 
@@ -23,7 +23,9 @@ export interface IUserData {
 }
 ```
 
-Essas interfaces são implementadas em uma única classe `UserRepository`, mas cada parte da aplicação importa **apenas a interface que realmente utiliza**, reduzindo acoplamento e melhorando a organização.
+Essas interfaces são implementadas em uma única classe `UserRepository`, mas cada parte da aplicação importa **apenas a interface que realmente utiliza**, seguindo o ISP.
+
+##Aplicações no projeto
 
 ```ts
 class UserRepository implements ILogin, IRegister, IUserData {
@@ -33,13 +35,32 @@ class UserRepository implements ILogin, IRegister, IUserData {
 export const userRepository = new UserRepository();
 ```
 
-Exemplo de uso em uma tela que só precisa da função de login:
+login.tsx depende apenas da interface ILogin:
 
 ```ts
 import type { ILogin } from '../interfaces/user/ILogin';
 const authService: ILogin = userRepository;
 
 await authService.loginUser(email, senha);
+```
+
+register.tsx depende apenas da interface IRegister:
+
+```ts
+import type { IRegister } from '../interfaces/user/IRegister';
+const registerService: IRegister = userRepository;
+
+await registerService.registerUser(nome, email, celular, senha);
+```
+
+profile.tsx depende apenas da interface IUserData, com tipagem segura:
+
+```ts
+import type { IUserData } from '../interfaces/user/IUserData';
+import type { User } from '../types/User';
+
+const userService: IUserData = userRepository;
+const [usuario, setUsuario] = useState<User | null>(null);
 ```
 
 Esse modelo permite reaproveitamento, facilita testes e está de acordo com a letra I do SOLID.

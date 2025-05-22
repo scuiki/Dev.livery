@@ -1,9 +1,10 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Pressable, Animated } from 'react-native';
 import { useState, useRef } from 'react';
 import { router } from 'expo-router';
-import { registerUser } from '../../src/database/userRepository';
+import { userRepository } from '../../src/database/userRepository';
+import type { IRegister } from '../../src/interfaces/user/IRegister';
 
-
+const registerService: IRegister = userRepository;
 const { height } = Dimensions.get('window');
 
 export default function Register() {
@@ -33,7 +34,7 @@ export default function Register() {
     // Aguarda o banco terminar de liberar (resolve o database locked)
     await new Promise((res) => setTimeout(res, 100));
   
-    const sucesso = await registerUser(nome, email, celular, senha);
+    const sucesso = await registerService.registerUser(nome, email, celular, senha);
   
     if (sucesso) {
       alert(`Conta criada com sucesso!`);

@@ -1,4 +1,5 @@
+import type { User } from '../../types/User';
+
 export interface IUserData {
-    getCurrentUser(): Promise<any | null>;
-  }
-  
+  getCurrentUser(): Promise<User | null>;
+}
