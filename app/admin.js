@@ -15,14 +15,17 @@ export default function Admin() {
   const [descricao, setDescricao] = useState('');
   const [preco, setPreco] = useState('');
   const [imagem, setImagem] = useState('');
-  const [categoria, setCategoria] = useState('Entradas');
+  const [categoria, setCategoria] = useState('');
   const [precosEditados, setPrecosEditados] = useState({});
 
-  const categorias = ['Entradas', 'Pizzas', 'Burgers'];
-
-  const carregarProdutos = () => {
-    const todos = getAllProducts();
-    setProdutos(todos);
+  const carregarProdutos = async () => {
+    const todos = await getAllProducts(); // aguarda a Promise resolver
+    if (Array.isArray(todos)) {
+      setProdutos(todos);
+    } else {
+      console.warn('getAllProducts retornou um tipo inesperado:', todos);
+      setProdutos([]);
+    }
   };
 
   const handleAdd = () => {
@@ -105,22 +108,12 @@ export default function Admin() {
         onChangeText={setImagem}
       />
 
-      <View style={styles.categorias}>
-        {categorias.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            onPress={() => setCategoria(cat)}
-            style={[
-              styles.botaoCategoria,
-              categoria === cat && styles.categoriaSelecionada
-            ]}
-          >
-            <Text style={categoria === cat ? styles.textoSelecionado : styles.textoCategoria}>
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <TextInput
+        style={styles.input}
+        placeholder="Categoria (ex: Bebidas, Pizzas, etc)"
+        value={categoria}
+        onChangeText={setCategoria}
+      />
 
       <TouchableOpacity style={styles.botaoAdd} onPress={handleAdd}>
         <Text style={styles.textoAdd}>Adicionar produto</Text>

@@ -17,48 +17,26 @@ import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
-const destaques = [
-  {
-    id: '1',
-    nome: 'Burger de Frango',
-    preco: 15,
-    descricao: 'Frango crocante com molho especial',
-    imagem: require('../assets/mock/burger-frango.png'),
-    imagemUri: require('../assets/mock/burger-frango.png'),
-  },
-  {
-    id: '2',
-    nome: 'Cheeseburger',
-    preco: 20,
-    descricao: 'Clássico hambúrguer com queijo e salada',
-    imagem: require('../assets/mock/cheeseburger.png'),
-    imagemUri: require('../assets/mock/cheeseburger.png'),
-  },
-];
-
 export default function Home() {
   const [produtos, setProdutos] = useState([]);
-  const [categoriaAtiva, setCategoriaAtiva] = useState('Pizzas');
+  const [categoriaAtiva, setCategoriaAtiva] = useState('');
   const [busca, setBusca] = useState('');
+  const [categorias, setCategorias] = useState([]);
+  const [endereco, setEndereco] = useState('Carregando endereço...');
   const router = useRouter();
-
-  const categorias = ['Entradas', 'Pizzas', 'Burgers'];
 
   useEffect(() => {
     const carregarProdutos = async () => {
       const todos = await getAllProducts();
       setProdutos(todos);
+
+      const categoriasUnicas = [...new Set(todos.map((p) => p.categoria))];
+      setCategorias(categoriasUnicas);
+      if (categoriasUnicas.length > 0) setCategoriaAtiva(categoriasUnicas[0]);
     };
+
     carregarProdutos();
   }, []);
-
-  const itensFiltrados = produtos.filter(
-    (p) =>
-      p.categoria === categoriaAtiva &&
-      p.nome.toLowerCase().includes(busca.toLowerCase())
-  );
-
-  const [endereco, setEndereco] = useState('Carregando endereço...');
 
   useEffect(() => {
     const carregarEndereco = async () => {
@@ -67,7 +45,15 @@ export default function Home() {
       else setEndereco('Endereço não cadastrado');
     };
     carregarEndereco();
-  }, []);  
+  }, []);
+
+  const destaques = produtos.filter((p) => p.id === 8 || p.id === 10);
+
+  const itensFiltrados = produtos.filter(
+    (p) =>
+      p.categoria === categoriaAtiva &&
+      p.nome.toLowerCase().includes(busca.toLowerCase())
+  );
 
   return (
     <View style={{ flex: 1 }}>
@@ -97,6 +83,7 @@ export default function Home() {
                 router.push({
                   pathname: '/details',
                   params: {
+                    id: item.id,
                     nome: item.nome,
                     descricao: item.descricao,
                     preco: item.preco,
@@ -105,7 +92,7 @@ export default function Home() {
                 })
               }
             >
-              <Image source={item.imagem} style={styles.imagemDestaque} />
+              <Image source={{ uri: item.imagemUri }} style={styles.imagemDestaque} />
               <Text style={styles.nomeItem}>{item.nome}</Text>
               <Text style={styles.precoItem}>R${item.preco.toFixed(2)}</Text>
             </TouchableOpacity>
@@ -130,10 +117,11 @@ export default function Home() {
               router.push({
                 pathname: '/details',
                 params: {
+                  id: item.id,
                   nome: item.nome,
                   descricao: item.descricao,
                   preco: item.preco,
-                  imagemUri: item.imagem,
+                  imagemUri: item.imagemUri,
                 },
               })
             }
@@ -144,7 +132,7 @@ export default function Home() {
               <Text style={styles.descItem}>{item.descricao}</Text>
               <Text style={styles.precoItem}>R${item.preco.toFixed(2)}</Text>
             </View>
-            <Image source={{ uri: item.imagem }} style={styles.imagemItem} />
+            <Image source={{ uri: item.imagemUri }} style={styles.imagemItem} />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -155,8 +143,8 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 20, backgroundColor: '#fff'},
-  enderecoContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, margin: 'auto' },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 20, backgroundColor: '#fff' },
+  enderecoContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   endereco: { marginLeft: 6, fontSize: 16, fontWeight: '600', color: '#555' },
   busca: {
     backgroundColor: '#eef6fb',
@@ -179,7 +167,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     alignItems: 'center',
   },
-  imagemDestaque: { width: 100, height: 100, resizeMode: 'contain' },
+  imagemDestaque: { width: 100, height: 100, resizeMode: 'contain', borderRadius: 8 },
   nomeItem: { fontWeight: 'bold', fontSize: 14, marginTop: 6 },
   precoItem: { color: '#05C7F2', fontWeight: '600', marginTop: 4 },
   tabs: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },

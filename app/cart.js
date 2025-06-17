@@ -7,30 +7,38 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomTabs from '../components/bottomTabs';
-import { getCartItems, updateCartItem, removeCartItem } from '../src/database/cartRepository';
-import * as SecureStore from 'expo-secure-store';
-import { fazerPedido } from '../src/database/orderRepository';
-import { clearCart } from '../src/database/cartRepository';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
+const API_URL = 'http://192.168.2.129:3000';
 const { width } = Dimensions.get('window');
 
 export default function Cart() {
   const [itens, setItens] = useState([]);
   const [subTotal, setSubTotal] = useState(0);
   const [endereco, setEndereco] = useState('Carregando endereço...');
+  const [userId, setUserId] = useState(null);
+  const [fidelidade, setFidelidade] = useState(0);
+  const [descontoGanho, setDescontoGanho] = useState(false);
 
   const taxaEntrega = 10;
-  const desconto = 5;
-  const total = subTotal + taxaEntrega - desconto;
+  const [descontoFidelidade, setDescontoFidelidade] = useState(0);
+  const fidelidadeVisual = fidelidade === 0 && descontoFidelidade > 0 ? 5 : fidelidade;
+  const total = Number(subTotal) + Number(taxaEntrega) - Number(descontoFidelidade);
 
-  const carregarCarrinho = async () => {
-    const itensDB = await getCartItems();
-    setItens(itensDB);
-    calcularSubtotal(itensDB);
+  const carregarCarrinho = async (id, descontoAtivo) => {
+    try {
+      const response = await fetch(`${API_URL}/cart/${id}`);
+      const data = await response.json();
+      setItens(data);
+      await calcularSubtotal(data, descontoAtivo);
+    } catch (error) {
+      console.error('Erro ao carregar carrinho:', error);
+    }
   };
 
   const carregarEndereco = async () => {
@@ -38,106 +46,191 @@ export default function Cart() {
     if (salvo) setEndereco(salvo);
     else setEndereco('Endereço não cadastrado');
   };
-  
-  carregarEndereco();  
 
-  const calcularSubtotal = (lista) => {
+  const calcularSubtotal = (lista, pontosFidelidade) => {
     const total = lista.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
     setSubTotal(total);
+  
+    if (pontosFidelidade === 5) {
+      const desconto = total * 0.2;
+      setDescontoFidelidade(desconto);
+    } else {
+      setDescontoFidelidade(0);
+    }
+  };
+  
+
+  const carregarFidelidade = async (id, descontoAtivo) => {
+    try {
+      const res = await fetch(`${API_URL}/users/${id}/fidelidade`);
+      const json = await res.json();
+      const pontos = json.fidelidade || 0;
+  
+      if (pontos === 0 && descontoAtivo) {
+        setFidelidade(5);
+      } else {
+        setFidelidade(pontos);
+      }
+    } catch (error) {
+      console.log('Erro ao carregar fidelidade:', error.message);
+    }
   };
 
-  const alterarQuantidade = async (id, novaQtd) => {
-    if (novaQtd < 1) {
-      await removeCartItem(id);
-    } else {
-      await updateCartItem(id, novaQtd);
+  const alterarQuantidade = async (productId, novaQtd) => {
+    try {
+      if (novaQtd <= 0) {
+        await fetch(`${API_URL}/cart/${userId}/${productId}`, { method: 'DELETE' });
+      } else {
+        await fetch(`${API_URL}/cart`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, productId, quantidade: novaQtd }),
+        });
+      }
+      carregarCarrinho(userId);
+    } catch (error) {
+      console.error('Erro ao atualizar item:', error);
     }
-    carregarCarrinho();
   };
 
   const realizarPedido = async () => {
-    if (itens.length === 0) {
-      alert('Seu carrinho está vazio.');
-      return;
-    }
+    if (itens.length === 0) return Alert.alert('Carrinho vazio');
+    if (!endereco || endereco === 'Endereço não cadastrado')
+      return Alert.alert('Cadastre um endereço antes');
   
     try {
-      await fazerPedido(itens, total, endereco);
-      await clearCart();
-      alert('Pedido realizado com sucesso!');
-      router.replace('/status'); // você criará essa tela depois
-    } catch (err) {
-      alert('Erro ao fazer o pedido.');
-      console.error(err);
+      const response = await fetch(`${API_URL}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          endereco,
+          total,
+          data: new Date().toISOString(), // envia a data corretamente
+          items: itens.map(item => ({
+            productId: item.productId,
+            quantidade: item.quantidade
+          })),
+        }),
+      });
+  
+      if (!response.ok) throw new Error('Erro ao fazer pedido');
+  
+      const { orderId, fidelidade: novaFidelidade } = await response.json();
+      setFidelidade(novaFidelidade);
+  
+      if (novaFidelidade === 0) {
+        // Se resetou, é porque o usuário acabou de ganhar o brinde no pedido 5
+        setDescontoGanho(true);
+        await SecureStore.setItemAsync('descontoGanho', 'true');
+      } else {
+        setDescontoGanho(false);
+        await SecureStore.deleteItemAsync('descontoGanho');
+      }
+  
+      await fetch(`${API_URL}/cart/${userId}`, { method: 'DELETE' });
+  
+      Alert.alert('Sucesso', 'Pedido realizado com sucesso!');
+      router.replace('/status');
+    } catch (error) {
+      console.error('Erro no pedido:', error);
+      Alert.alert('Erro', 'Não foi possível realizar o pedido');
     }
-  };
+  };  
 
   useEffect(() => {
-    carregarCarrinho();
+    const init = async () => {
+      const id = await SecureStore.getItemAsync('userId');
+      if (!id) return;
+    
+      const userIdNumber = Number(id);
+      setUserId(userIdNumber);
+    
+      await carregarEndereco();
+    
+      try {
+        const res = await fetch(`${API_URL}/users/${userIdNumber}/fidelidade`);
+        const json = await res.json();
+        const pontos = json.fidelidade || 0;
+        setFidelidade(pontos);
+    
+        const carrinhoRes = await fetch(`${API_URL}/cart/${userIdNumber}`);
+        const carrinho = await carrinhoRes.json();
+        setItens(carrinho);
+    
+        calcularSubtotal(carrinho, pontos);
+      } catch (error) {
+        console.log('Erro ao inicializar dados:', error);
+      }
+    };    
+    init();
   }, []);
+  
+  useEffect(() => {
+    if (userId) {
+      carregarCarrinho(userId, descontoGanho);
+    }
+  }, [descontoGanho]);  
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 90 }}>
+      <View style={{ marginVertical: 20 }}>
+        <Text style={styles.titulo}>Fidelidade</Text>
+        <View style={styles.barraContainer}>
+          <View style={[styles.barraPreenchida, { width: `${(fidelidadeVisual / 5) * 100}%` }]} />
+        </View>
+        <Text style={styles.textoFidelidade}>
+          {fidelidadeVisual < 5
+            ? `${fidelidadeVisual}/5 pedidos para ganhar 20% de desconto`
+            : 'Parabéns! Você ganhou 20% de desconto neste pedido'}
+        </Text>
+      </View>
 
         <Text style={styles.titulo}>Detalhes do pedido</Text>
 
-        {/* Lista de itens */}
         {itens.map(item => (
-          <View key={item.id} style={styles.cardItem}>
-            <Image source={{ uri: item.imagem }} style={styles.imagemItem} />
+          <View key={item.productId} style={styles.cardItem}>
+            <Image source={{ uri: item.imagemUri }} style={styles.imagemItem} />
             <View style={{ flex: 1 }}>
               <Text style={styles.nomeItem}>{item.nome}</Text>
               <Text style={styles.descItem}>{item.descricao}</Text>
               <Text style={styles.precoItem}>R${item.preco.toFixed(2)}</Text>
             </View>
             <View style={styles.contador}>
-              <TouchableOpacity onPress={() => alterarQuantidade(item.id, item.quantidade - 1)} style={styles.botaoContador}>
+              <TouchableOpacity onPress={() => alterarQuantidade(item.productId, item.quantidade - 1)} style={styles.botaoContador}>
                 <Text style={styles.contadorTexto}>-</Text>
               </TouchableOpacity>
               <Text style={styles.contadorValor}>{item.quantidade}</Text>
-              <TouchableOpacity onPress={() => alterarQuantidade(item.id, item.quantidade + 1)} style={styles.botaoContador}>
+              <TouchableOpacity onPress={() => alterarQuantidade(item.productId, item.quantidade + 1)} style={styles.botaoContador}>
                 <Text style={styles.contadorTexto}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
         ))}
 
-        {/* Endereço */}
+        {/* Endereço e resumo */} 
         <Text style={styles.titulo}>Endereço de entrega</Text>
         <View style={styles.cardEndereco}>
           <Ionicons name="location-sharp" size={18} color="#05C7F2" />
           <Text style={styles.textoEndereco}>{endereco}</Text>
         </View>
 
-        {/* Pagamento */}
         <Text style={styles.titulo}>Método de pagamento</Text>
         <View style={styles.cardEndereco}>
           <Ionicons name="card" size={18} color="#05C7F2" />
           <Text style={styles.textoEndereco}>Na entrega</Text>
         </View>
 
-        {/* Resumo */}
         <View style={styles.resumoPedido}>
-          <View style={styles.linhaResumo}>
-            <Text style={styles.resumoTexto}>Sub-Total</Text>
-            <Text style={styles.resumoTexto}>R$ {subTotal.toFixed(2)}</Text>
-          </View>
-          <View style={styles.linhaResumo}>
-            <Text style={styles.resumoTexto}>Taxa de entrega</Text>
-            <Text style={styles.resumoTexto}>R$ {taxaEntrega.toFixed(2)}</Text>
-          </View>
+          <View style={styles.linhaResumo}><Text style={styles.resumoTexto}>Sub-Total</Text><Text style={styles.resumoTexto}>R$ {subTotal.toFixed(2)}</Text></View>
+          <View style={styles.linhaResumo}><Text style={styles.resumoTexto}>Taxa de entrega</Text><Text style={styles.resumoTexto}>R$ {taxaEntrega.toFixed(2)}</Text></View>
           <View style={styles.linhaResumo}>
             <Text style={styles.resumoTexto}>Desconto</Text>
-            <Text style={styles.resumoTexto}>R$ {desconto.toFixed(2)}</Text>
+            <Text style={styles.resumoTexto}>R$ {descontoFidelidade.toFixed(2)}</Text>
           </View>
-
           <View style={styles.divisor} />
-
-          <View style={styles.linhaResumo}>
-            <Text style={styles.resumoTotal}>Total</Text>
-            <Text style={styles.resumoTotal}>R$ {total.toFixed(2)}</Text>
-          </View>
+          <View style={styles.linhaResumo}><Text style={styles.resumoTotal}>Total</Text><Text style={styles.resumoTotal}>R$ {total.toFixed(2)}</Text></View>
 
           <TouchableOpacity style={styles.botaoPedido} onPress={realizarPedido}>
             <Text style={styles.botaoTexto}>Fazer pedido</Text>
@@ -233,4 +326,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
   },
+  barraContainer: {
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  barraPreenchida: {
+    height: '100%',
+    backgroundColor: '#05C7F2',
+  },
+  textoFidelidade: {
+    fontSize: 12,
+    color: '#555',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  
 });

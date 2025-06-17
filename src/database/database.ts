@@ -3,23 +3,15 @@ import { openDatabaseSync } from 'expo-sqlite';
 export const initDB = () => {
   const db = openDatabaseSync('devlivery.db');
 
-  // Tabela de usuários
-  const stmtUsers = db.prepareSync(
-    `CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      celular TEXT,
-      senha TEXT NOT NULL
-    )`
-  );
-  stmtUsers.executeSync();
-  stmtUsers.finalizeSync();
+  db.execSync('DROP TABLE IF EXISTS cart;');
+  db.execSync('DROP TABLE IF EXISTS products;');
+  db.execSync('DROP TABLE IF EXISTS pedidos;');
 
   // Tabela de carrinho
   const stmtCart = db.prepareSync(
     `CREATE TABLE IF NOT EXISTS cart (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      productId INTEGER NOT NULL,
       nome TEXT NOT NULL,
       descricao TEXT,
       preco REAL NOT NULL,

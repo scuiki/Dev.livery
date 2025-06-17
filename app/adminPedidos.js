@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity
 } from 'react-native';
-import { getPedidos, atualizarStatusPedido } from '../src/database/orderRepository';
+import { getAllOrders, updateOrderStatus } from '../src/database/orderRepository';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
@@ -16,7 +16,7 @@ export default function AdminPedidos() {
   const [pedidos, setPedidos] = useState([]);
 
   const carregarPedidos = async () => {
-    const lista = await getPedidos();
+    const lista = await getAllOrders();
     setPedidos(lista);
   };
 
@@ -28,19 +28,22 @@ export default function AdminPedidos() {
     const indexAtual = statusEtapas.indexOf(pedido.status);
     if (indexAtual < statusEtapas.length - 1) {
       const novoStatus = statusEtapas[indexAtual + 1];
-      await atualizarStatusPedido(pedido.id, novoStatus);
+      await updateOrderStatus(pedido.id, novoStatus);
       carregarPedidos(); // Atualiza a lista
     }
   };
 
+  const pedidosEmAndamento = pedidos.filter(p => p.status !== 'Pedido Entregue');
+  const pedidosEntregues = pedidos.filter(p => p.status === 'Pedido Entregue');
+
   return (
     <ScrollView style={styles.container}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.botaoVoltar}>
-            <Ionicons name="chevron-back" size={24} color="#05C7F2" />
-        </TouchableOpacity>
-      <Text style={styles.titulo}>Pedidos Recebidos</Text>
+      <TouchableOpacity onPress={() => router.back()} style={styles.botaoVoltar}>
+        <Ionicons name="chevron-back" size={24} color="#05C7F2" />
+      </TouchableOpacity>
 
-      {pedidos.map((pedido) => (
+      <Text style={styles.titulo}>Pedidos em Andamento</Text>
+      {pedidosEmAndamento.map((pedido) => (
         <View key={pedido.id} style={styles.card}>
           <Text style={styles.info}><Text style={styles.label}>ID:</Text> {pedido.id}</Text>
           <Text style={styles.info}><Text style={styles.label}>Data:</Text> {new Date(pedido.data).toLocaleString()}</Text>
@@ -52,14 +55,27 @@ export default function AdminPedidos() {
             <Text key={i} style={styles.item}>- {item.quantidade}x {item.nome}</Text>
           ))}
 
-          {pedido.status !== 'Pedido Entregue' && (
-            <TouchableOpacity
-              onPress={() => avancarStatus(pedido)}
-              style={styles.botao}
-            >
-              <Text style={styles.botaoTexto}>Avançar Status</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => avancarStatus(pedido)}
+            style={styles.botao}
+          >
+            <Text style={styles.botaoTexto}>Avançar Status</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      <Text style={styles.titulo}>Pedidos Entregues</Text>
+      {pedidosEntregues.map((pedido) => (
+        <View key={pedido.id} style={styles.card}>
+          <Text style={styles.info}><Text style={styles.label}>ID:</Text> {pedido.id}</Text>
+          <Text style={styles.info}><Text style={styles.label}>Data:</Text> {new Date(pedido.data).toLocaleString()}</Text>
+          <Text style={styles.info}><Text style={styles.label}>Endereço:</Text> {pedido.endereco}</Text>
+          <Text style={styles.info}><Text style={styles.label}>Total:</Text> R$ {pedido.total.toFixed(2)}</Text>
+          <Text style={styles.info}><Text style={styles.label}>Status:</Text> {pedido.status}</Text>
+          <Text style={styles.label}>Itens:</Text>
+          {pedido.itens.map((item, i) => (
+            <Text key={i} style={styles.item}>- {item.quantidade}x {item.nome}</Text>
+          ))}
         </View>
       ))}
     </ScrollView>

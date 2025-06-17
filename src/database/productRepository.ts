@@ -1,75 +1,72 @@
-import { openDatabaseSync } from 'expo-sqlite';
+import { Product } from '../types/Product';
 
-// Inicializa a tabela com a coluna de categoria
-const db = openDatabaseSync('devlivery.db');
-const createStmt = db.prepareSync(`
-  CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
-    descricao TEXT,
-    preco REAL NOT NULL,
-    imagem TEXT,
-    categoria TEXT NOT NULL
-  );
-`);
-createStmt.executeSync();
-createStmt.finalizeSync();
+const API_URL = 'http://192.168.2.129:3000';
 
-// Listar todos os produtos
-export const getAllProducts = (): any[] => {
+export const getAllProducts = async (): Promise<Product[]> => {
   try {
-    const db = openDatabaseSync('devlivery.db');
-    const stmt = db.prepareSync('SELECT * FROM products');
-    const result = stmt.executeSync([]);
-    const items = result.getAllSync();
-    stmt.finalizeSync();
-    return items;
+    const response = await fetch(`${API_URL}/products`);
+    if (!response.ok) throw new Error('Erro ao buscar produtos.');
+    return await response.json();
   } catch (error: any) {
     console.log('Erro ao buscar produtos:', error.message);
     return [];
   }
 };
 
-// Adicionar produto com categoria
-export const addProduct = (
+export const addProduct = async (
   nome: string,
   descricao: string,
   preco: number,
-  imagem: string,
+  imagemUri: string,
   categoria: string
-): void => {
+): Promise<boolean> => {
   try {
-    const db = openDatabaseSync('devlivery.db');
-    const stmt = db.prepareSync(
-      'INSERT INTO products (nome, descricao, preco, imagem, categoria) VALUES (?, ?, ?, ?, ?);'
-    );
-    stmt.executeSync([nome, descricao, preco, imagem, categoria]);
-    stmt.finalizeSync();
+    const response = await fetch(`${API_URL}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, descricao, preco, imagemUri, categoria }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      console.log('Erro ao adicionar produto:', data.error || response.statusText);
+      return false;
+    }
+
+    return true;
   } catch (error: any) {
     console.log('Erro ao adicionar produto:', error.message);
+    return false;
   }
 };
 
-// Atualizar apenas o preço
-export const updateProductPrice = (id: number, novoPreco: number): void => {
+export const updateProductPrice = async (
+  id: number,
+  novoPreco: number
+): Promise<boolean> => {
   try {
-    const db = openDatabaseSync('devlivery.db');
-    const stmt = db.prepareSync('UPDATE products SET preco = ? WHERE id = ?;');
-    stmt.executeSync([novoPreco, id]);
-    stmt.finalizeSync();
+    const response = await fetch(`${API_URL}/products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preco: novoPreco }),
+    });
+
+    return response.ok;
   } catch (error: any) {
     console.log('Erro ao atualizar preço:', error.message);
+    return false;
   }
 };
 
-// Excluir produto
-export const deleteProduct = (id: number): void => {
+export const deleteProduct = async (id: number): Promise<boolean> => {
   try {
-    const db = openDatabaseSync('devlivery.db');
-    const stmt = db.prepareSync('DELETE FROM products WHERE id = ?;');
-    stmt.executeSync([id]);
-    stmt.finalizeSync();
+    const response = await fetch(`${API_URL}/products/${id}`, {
+      method: 'DELETE',
+    });
+
+    return response.ok;
   } catch (error: any) {
     console.log('Erro ao excluir produto:', error.message);
+    return false;
   }
 };

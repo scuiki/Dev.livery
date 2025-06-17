@@ -1,19 +1,14 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { addToCart } from '../src/database/cartRepository';
+import { addToCart } from '../src/database/cartRepository'; // usa o novo cartRepository
 
 export default function Details() {
-  const { nome, descricao, preco, imagemUri } = useLocalSearchParams();
+  const { id, nome, descricao, preco, imagemUri } = useLocalSearchParams();
 
   const handleAddToCart = async () => {
     try {
-      await addToCart(
-        String(nome),
-        String(descricao),
-        Number(preco),
-        String(imagemUri)
-      );
+      await addToCart(Number(id)); // agora só envia o ID, o backend cuida do resto
       Alert.alert('Sucesso', 'Item adicionado ao carrinho!');
       router.back();
     } catch (error) {
@@ -35,14 +30,8 @@ export default function Details() {
         <Text style={styles.desc}>{descricao}</Text>
         <Text style={styles.preco}>R$ {Number(preco).toFixed(2)}</Text>
 
-        <TouchableOpacity
-            style={styles.botao}
-            onPress={async () => {
-                await addToCart(nome, descricao, Number(preco), imagemUri);
-                alert('Item adicionado ao carrinho!');
-            }}
-            >
-            <Text style={styles.botaoTexto}>Adicionar ao carrinho</Text>
+        <TouchableOpacity style={styles.botao} onPress={handleAddToCart}>
+          <Text style={styles.botaoTexto}>Adicionar ao carrinho</Text>
         </TouchableOpacity>
       </View>
     </View>

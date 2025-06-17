@@ -40,22 +40,42 @@ export default function Login() {
 
     const sucesso = await authService.loginUser(email, senha);
 
-    if (email === 'admin' && senha === '123') {
-      await SecureStore.setItemAsync('admin', 'true');
-      fecharModalAnimado();
-      setTimeout(() => {
-        router.replace('/admin'); // redireciona para a tela do admin
-      }, 300);
-    } else if (sucesso) {
+    if (sucesso) {
+      // Salva o e-mail
       await SecureStore.setItemAsync('userEmail', email);
+  
+      // 🔽 Busca o userId com base no email
+      try {
+        const response = await fetch(`http://192.168.2.129:3000/users/byEmail/${email}`);
+        if (!response.ok) throw new Error('Erro ao buscar userId');
+  
+        const user = await response.json();
+        const userId = user.id?.toString();
+  
+        if (userId) {
+          await SecureStore.setItemAsync('userId', userId); // ✅ salva userId no SecureStore
+        } else {
+          throw new Error('userId não encontrado');
+        }
+      } catch (err) {
+        console.error('Erro ao buscar e salvar userId:', err);
+        alert('Erro ao autenticar. Tente novamente.');
+        return;
+      }
+  
       fecharModalAnimado();
+    
       setTimeout(() => {
-        router.replace('/home'); // redireciona para a tela principal
+        if (email === 'admin' && senha === '123') {
+          router.replace('/admin');
+        } else {
+          router.replace('/home');
+        }
       }, 300);
     } else {
       alert('Login inválido. Verifique o e-mail e a senha.');
     }
-  };
+  }    
 
   return (
     <View style={styles.backdrop}>

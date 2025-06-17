@@ -20,13 +20,17 @@ export default function Status() {
 
   const buscarPedidosDoUsuario = async () => {
     setCarregando(true);
-    const email = await SecureStore.getItemAsync('userEmail');
-    const todos = await getPedidos();
-
-    if (email) {
-        const doUsuario = todos.filter(p => p.email === email);
-      setPedidos(doUsuario);
-    } else {
+    const id = await SecureStore.getItemAsync('userId');
+    if (!id) return setPedidos([]);
+    
+    try {
+      const response = await fetch(`http://192.168.2.129:3000/orders/${id}/detalhado`);
+      if (!response.ok) throw new Error('Erro ao buscar pedidos');
+    
+      const data = await response.json();
+      setPedidos(data);
+    } catch (err) {
+      console.error('Erro ao buscar pedidos:', err);
       setPedidos([]);
     }
     setCarregando(false);
@@ -84,7 +88,7 @@ export default function Status() {
               {renderEtapas(pedido.status)}
 
               <Text style={styles.label}>Itens:</Text>
-              {pedido.itens.map((item, idx) => (
+              {pedido.items.map((item, idx) => (
                 <Text key={idx} style={styles.texto}>
                   {item.quantidade}x {item.nome}
                 </Text>

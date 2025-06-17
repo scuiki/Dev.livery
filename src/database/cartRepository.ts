@@ -1,92 +1,86 @@
-import { openDatabaseSync } from 'expo-sqlite';
+import * as SecureStore from 'expo-secure-store';
 
-export const addToCart = (
-  nome: string,
-  descricao: string,
-  preco: number,
-  imagem: string
-): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const db = openDatabaseSync('devlivery.db');
+const API_URL = 'http://192.168.2.129:3000';
 
-      const stmt = db.prepareSync(
-        'INSERT INTO cart (nome, descricao, preco, imagem, quantidade) VALUES (?, ?, ?, ?, ?);'
-      );
-      stmt.executeSync([nome, descricao, preco, imagem, 1]);
-      stmt.finalizeSync();
-      resolve();
-    } catch (error: any) {
-      console.log('Erro ao adicionar ao carrinho:', error.message || error);
-      reject(error);
-    }
-  });
+export const getCartItems = async (): Promise<any[]> => {
+  try {
+    const userId = await SecureStore.getItemAsync('userId');
+    if (!userId) throw new Error('Usuário não autenticado');
+
+    const response = await fetch(`${API_URL}/cart/${userId}`);
+    if (!response.ok) throw new Error('Erro ao buscar carrinho');
+    
+    return await response.json();
+  } catch (err) {
+    console.error('Erro ao buscar carrinho:', err);
+    return [];
+  }
 };
 
-export const getCartItems = (): Promise<any[]> => {
-  return new Promise((resolve) => {
-    try {
-      const db = openDatabaseSync('devlivery.db');
+export const addToCart = async (productId: number): Promise<void> => {
+  try {
+    const userId = await SecureStore.getItemAsync('userId');
+    if (!userId) throw new Error('Usuário não autenticado');
 
-      const stmt = db.prepareSync('SELECT * FROM cart;');
-      const result = stmt.executeSync([]);
-      const items = result.getAllSync();
-      stmt.finalizeSync();
-      resolve(items);
-    } catch (error: any) {
-      console.log('Erro ao buscar carrinho:', error.message || error);
-      resolve([]);
+    const response = await fetch(`${API_URL}/cart`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: Number(userId), productId }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data?.error || 'Erro ao adicionar item');
     }
-  });
+  } catch (err) {
+    console.error('Erro ao adicionar ao carrinho:', err);
+    throw err;
+  }
 };
 
-export const updateCartItem = (
-  id: number,
+export const updateCartItem = async (
+  productId: number,
   quantidade: number
 ): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const db = openDatabaseSync('devlivery.db');
+  try {
+    const userId = await SecureStore.getItemAsync('userId');
+    if (!userId) throw new Error('Usuário não autenticado');
 
-      const stmt = db.prepareSync('UPDATE cart SET quantidade = ? WHERE id = ?;');
-      stmt.executeSync([quantidade, id]);
-      stmt.finalizeSync();
-      resolve();
-    } catch (error: any) {
-      console.log('Erro ao atualizar item do carrinho:', error.message || error);
-      reject(error);
+    const response = await fetch(`${API_URL}/cart`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: Number(userId), productId, quantidade }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data?.error || 'Erro ao atualizar item');
     }
-  });
+  } catch (err) {
+    console.error('Erro ao atualizar item:', err);
+    throw err;
+  }
 };
 
-export const clearCart = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const db = openDatabaseSync('devlivery.db');
-
-      const stmt = db.prepareSync('DELETE FROM cart;');
-      stmt.executeSync([]);
-      stmt.finalizeSync();
-      resolve();
-    } catch (error: any) {
-      console.log('Erro ao limpar carrinho:', error.message || error);
-      reject(error);
-    }
-  });
+export const removeCartItem = async (productId: number): Promise<void> => {
+  await updateCartItem(productId, 0); // zera quantidade no backend, removendo o item
 };
 
-export const removeCartItem = (id: number): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const db = openDatabaseSync('devlivery.db');
+export const clearCart = async (): Promise<void> => {
+  try {
+    const userId = await SecureStore.getItemAsync('userId');
+    if (!userId) throw new Error('Usuário não autenticado');
 
-      const stmt = db.prepareSync('DELETE FROM cart WHERE id = ?;');
-      stmt.executeSync([id]);
-      stmt.finalizeSync();
-      resolve();
-    } catch (error: any) {
-      console.log('Erro ao remover item do carrinho:', error.message || error);
-      reject(error);
+    const response = await fetch(`${API_URL}/cart/${userId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data?.error || 'Erro ao limpar carrinho');
     }
-  });
+  } catch (err) {
+    console.error('Erro ao limpar carrinho:', err);
+    throw err;
+  }
 };

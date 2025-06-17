@@ -1,54 +1,77 @@
-import { openDatabaseSync } from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import { ILogin } from '../interfaces/user/ILogin';
 import { IRegister } from '../interfaces/user/IRegister';
 import { IUserData } from '../interfaces/user/IUserData';
+import { User } from '../types/User';
+
+const API_URL = 'http://192.168.2.129:3000';
 
 class UserRepository implements ILogin, IRegister, IUserData {
   async registerUser(nome: string, email: string, celular: string, senha: string): Promise<boolean> {
     try {
-      const db = openDatabaseSync('devlivery.db');
-      const stmt = db.prepareSync('INSERT INTO users (nome, email, celular, senha) VALUES (?, ?, ?, ?);');
-      stmt.executeSync([nome, email, celular, senha]);
-      stmt.finalizeSync();
-      return true;
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, email, celular, senha }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) return true;
+      if (data.error?.includes('UNIQUE')) alert('E-mail já cadastrado.');
+      else alert('Erro ao cadastrar: ' + data.error);
+
+      return false;
     } catch (error: any) {
-      const message = error?.message || '';
-      if (message.includes('UNIQUE constraint failed: users.email')) {
-        alert('Esse e-mail já está cadastrado.');
-      } else {
-        alert('Erro ao cadastrar: ' + message);
-      }
+      alert('Erro: ' + error.message);
       return false;
     }
   }
 
   async loginUser(email: string, senha: string): Promise<boolean> {
     try {
-      const db = openDatabaseSync('devlivery.db');
-      const stmt = db.prepareSync('SELECT * FROM users WHERE email = ? AND senha = ?;');
-      const result = stmt.executeSync([email, senha]);
-      const rows = result.getAllSync();
-      stmt.finalizeSync();
-      return rows.length > 0;
+      // ✅ Lógica especial para admin
+      if (email === 'admin' && senha === '123') {
+        await SecureStore.setItemAsync('userEmail', email);
+        return true;
+      }
+
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+      });
+
+      const user = await response.json();
+
+      if (response.ok && user) {
+        await SecureStore.setItemAsync('userEmail', email);
+        return true;
+      }
+
+      alert('Credenciais inválidas.');
+      return false;
     } catch (error: any) {
-      console.log('Erro no login:', error?.message || error);
+      alert('Erro ao fazer login: ' + error.message);
       return false;
     }
   }
 
-  async getCurrentUser(): Promise<any | null> {
+  async getCurrentUser(): Promise<User | null> {
     try {
       const email = await SecureStore.getItemAsync('userEmail');
       if (!email) return null;
 
-      const db = openDatabaseSync('devlivery.db');
-      const stmt = db.prepareSync('SELECT * FROM users WHERE email = ?;');
-      const result = stmt.executeSync([email]);
-      const user = result.getAllSync()[0];
-      stmt.finalizeSync();
+      // Se for admin, retorna manualmente
+      if (email === 'admin') {
+        return { nome: 'Administrador', email: 'admin' } as User;
+      }
 
-      return user || null;
+      const response = await fetch(`${API_URL}/users/byEmail/${email}`);
+      if (!response.ok) return null;
+
+      const user = await response.json();
+      return user;
     } catch (error) {
       console.error('Erro ao obter usuário:', error);
       return null;
